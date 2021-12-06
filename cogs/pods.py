@@ -1,4 +1,4 @@
-import discord
+import discord, os
 from discord import channel
 from discord.ext import commands, tasks
 
@@ -7,36 +7,45 @@ class Pods(commands.Cog):
         self.bot = bot
 
         # This needs to be set to the #seed-mining-bot channel ID
-        self.channel_id = 916385600398061618
-        self.seeds = seedGen()
-
+        self.channel_id = 915030926474493993
+        self.lastUpdate = None
+        
     @commands.command(name='set', hidden=True, help="Set the channel ID the bot posts to.")
     async def set_channel(self, ctx, channel_id: int):
         if not ctx.message.author.guild_permissions.administrator:
-            await ctx.send("You do not have permission to use this command.")
+            await ctx.send("`You do not have permission to use this command.`")
             return
         
         self.channel_id = channel_id
-        await ctx.send("Channel ID changed.")
+        await ctx.send("`Channel ID changed.`")
 
     # Defines the loop that will send messages on a given time interval.
-    @tasks.loop(minutes=1)
+    @tasks.loop(seconds=1)
     async def pod_msg(self):
-        # needs channel ID
-        message_channel = self.bot.get_channel(self.channel_id)
+
         try:
-            seedData = next(self.seeds).strip('\n').split('!')[:-1]
-        except StopIteration as e:
+            lastUpdate = os.path.getmtime(r"C:\Seeds\MapImage.png")
+        except OSError as e:
             print(e)
-            return
 
-        stage = seedData[0]
-        seed = seedData[1]
-        numPods = seedData[-1]
-        tpPos = seedData[-2]
-        pods = seedData[2:-2]
+        if lastUpdate != self.lastUpdate:
+            self.lastUpdate = lastUpdate
 
-        await message_channel.send(embed=podEmbed(seed, numPods, stage))
+            # needs channel ID
+            message_channel = self.bot.get_channel(self.channel_id)
+            
+            with open(r"C:\Seeds\SeedsTest.txt", 'r') as f:
+                seedData = f.readline()[:-1].split('!')[:-1]
+
+            stage = seedData[0]
+            seed = seedData[1]
+            numPods = seedData[-1]
+            tpPos = seedData[-2]
+            pods = seedData[2:-2]
+            file = discord.File("C:\Seeds\MapImage.png")
+            await message_channel.send(embed=podEmbed(seed, numPods, stage), file=file)
+        else:
+            pass
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -61,22 +70,23 @@ def seedGen():
         yield line
 
 def podEmbed(seed, numPods, stage):
-    embedVar = discord.Embed(title=f"Seed: {seed}", color=0x6eb0e6)
+    embedVar = discord.Embed(title=f"Seed: `{seed}`", color=0x6eb0e6)
 
     match stage:
         case "blackbeach":
-            stage = "Distant Roost 1"
+            stage = "`Distant Roost 1`"
         case "blackbeach2":
-            stage = "Distnat Roost 2"
+            stage = "`Distant Roost 2`"
         case "golemplains":
-            stage = "Titanic Plains 1"
+            stage = "`Titanic Plains 1`"
         case "golemplains2":
-            stage = "Titanic Plains 2"
+            stage = "`Titanic Plains 2`"
         case _:
-            stage = "null"
-
-    embedVar.add_field(name="Pods", value=str(numPods))
+            stage = "`null`"
+    embedVar.add_field(name="Pods", value=str(F"`{numPods}`"))
     embedVar.add_field(name="Stage", value=stage)
+    embedVar.set_image(url="attachment://MapImage.png")
+    # embedVar.set_image(url="https://drive.google.com/file/d/1-CWiM1p0TKNV0E_sogkTCmA7uU_Jg8pw/view")
     
     # embedVar.set_image(url="something")
     return embedVar
